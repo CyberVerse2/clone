@@ -1,0 +1,73 @@
+'use client';
+
+import { useRef, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+
+export function CtaSection() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) setVisible(true);
+      },
+      { threshold: 0.15 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <section
+      ref={ref}
+      className="relative py-36 md:py-44 px-6 text-center overflow-hidden"
+    >
+      {/* Pulsing glow */}
+      <div
+        className="absolute top-1/2 left-1/2 w-[500px] h-[500px] rounded-full pointer-events-none animate-pulse-glow"
+        style={{
+          transform: 'translate(-50%, -50%)',
+          background:
+            'radial-gradient(circle, rgba(167,139,250,0.16) 0%, rgba(55,242,255,0.08) 48%, rgba(255,92,122,0.05) 64%, transparent 72%)',
+        }}
+      />
+
+      <div
+        className={`relative transition-all duration-800 ${
+          visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
+        <h2 className="font-heading text-[clamp(2.5rem,5vw,4rem)] leading-[1.05] tracking-tight mb-5">
+          Ready to clone
+          <br />
+          yourself?
+        </h2>
+        <p className="text-gray text-lg mb-10 max-w-md mx-auto leading-relaxed">
+          Build your AI clone directly in the dashboard, then publish it for people to chat with.
+        </p>
+        <div
+          className={`flex gap-4 justify-center flex-wrap transition-all duration-700 ${
+            visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          }`}
+          style={{ transitionDelay: '0.15s' }}
+        >
+          <Link
+            href="/proxy"
+            className="bg-linear-to-r from-lime to-coral text-dark border-none px-7 py-3 rounded-full font-bold text-[0.95rem] cursor-pointer transition-all duration-300 hover:scale-105 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(55,242,255,0.28)] no-underline inline-block"
+          >
+            Create My Clone
+          </Link>
+          <Link href="/explore" className="no-underline">
+            <Button variant="outline" size="lg" type="button">
+              Explore Clones
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
