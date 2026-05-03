@@ -85,6 +85,18 @@ export async function GET(request: Request) {
         ? (error as { details: unknown }).details
         : undefined;
     console.error("[swap] Uniswap API error:", error);
+
+    if (type === "price" && status === 404) {
+      return NextResponse.json({
+        buyAmount: "0",
+        sellAmount,
+        gas: "0",
+        gasPrice: "0",
+        allowanceTarget: "",
+        totalNetworkFee: "0"
+      });
+    }
+
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Failed to fetch swap quote",

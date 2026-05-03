@@ -57,9 +57,9 @@ export function useProxyTrade({
   const { data: pricingData, isLoading: pricingLoading } = useQuery({
     queryKey: ['tokensPerMessage', tokenAddress],
     queryFn: async () => {
-      const result = await getPrice(tokenAddress!, '1', 'buy');
+      const result = await getPrice(tokenAddress!, String(MIN_BUY_MESSAGES), 'buy');
       if (!result) return { raw: 0, formatted: null };
-      const tokens = Number(result.buyAmount) / 1e18;
+      const tokens = Number(result.buyAmount) / 1e18 / MIN_BUY_MESSAGES;
       return { raw: tokens, formatted: tokens > 0 ? formatTokenAmount(tokens) : null };
     },
     enabled: !!tokenAddress,

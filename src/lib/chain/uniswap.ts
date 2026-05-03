@@ -169,13 +169,18 @@ async function requestUniswapQuote({
 }
 
 async function requestUniswapSwap(quote: UniswapQuoteResponse): Promise<UniswapSwapResponse> {
-  return requestUniswap<UniswapSwapResponse>("swap", {
+  const body: Record<string, unknown> = {
     quote: quote.quote,
-    permitData: quote.permitData,
-    simulateTransaction: true,
+    simulateTransaction: false,
     refreshGasPrice: true,
     urgency: "normal"
-  });
+  };
+
+  if (quote.permitData && typeof quote.permitData === "object") {
+    body.permitData = quote.permitData;
+  }
+
+  return requestUniswap<UniswapSwapResponse>("swap", body);
 }
 
 async function requestUniswap<T>(endpoint: string, body: Record<string, unknown>): Promise<T> {
