@@ -15,8 +15,8 @@ export const USDC_DECIMALS = 6;
 // ── Assets ───────────────────────────────────────────────────────────
 export const DEFAULT_AVATAR = "/default-avatar.png";
 
-// ── 0x API ───────────────────────────────────────────────────────────
-export const ZX_API_BASE = "https://api.0x.org/swap/allowance-holder";
+// ── Uniswap Trading API ──────────────────────────────────────────────
+export const UNISWAP_API_BASE = "https://trade-api.gateway.uniswap.org/v1";
 
 // ── Chat UI thresholds ───────────────────────────────────────────────
 export const LOW_MESSAGE_THRESHOLD = 10;

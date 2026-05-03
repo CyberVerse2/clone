@@ -30,8 +30,7 @@ export function useSwap(messagePriceUsd?: number) {
     setError,
     getWallet,
     getQuote,
-    sendTransaction,
-    msgPrice
+    sendTransaction
   );
   const getUsdcBalance = createGetUsdcBalance(getWallet);
   const getTokenBalance = createGetTokenBalance(getWallet);

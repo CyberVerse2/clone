@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { CloneMeButton } from '@/components/auth/clone-me-button';
 
 export function CtaSection() {
   const ref = useRef<HTMLDivElement>(null);
@@ -55,12 +56,9 @@ export function CtaSection() {
           }`}
           style={{ transitionDelay: '0.15s' }}
         >
-          <Link
-            href="/proxy"
+          <CloneMeButton
             className="bg-linear-to-r from-lime to-coral text-dark border-none px-7 py-3 rounded-full font-bold text-[0.95rem] cursor-pointer transition-all duration-300 hover:scale-105 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(55,242,255,0.28)] no-underline inline-block"
-          >
-            Create My Clone
-          </Link>
+          />
           <Link href="/explore" className="no-underline">
             <Button variant="outline" size="lg" type="button">
               Explore Clones

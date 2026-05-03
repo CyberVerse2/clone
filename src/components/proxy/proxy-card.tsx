@@ -23,7 +23,7 @@ export function ProxyCard({ proxy }: ProxyCardProps) {
         group no-underline shrink-0 w-[280px] relative 
         rounded-3xl border-2 border-transparent
         transition-all duration-300 shadow-lg overflow-hidden
-        min-h-[470px] flex flex-col justify-end
+        flex flex-col
         hover:border-lime
       `}
       style={{
@@ -33,8 +33,8 @@ export function ProxyCard({ proxy }: ProxyCardProps) {
       {/* Image + overlays */}
       <div
         className={`
-          absolute top-0 left-0 w-full aspect-square
-          rounded-3xl overflow-hidden z-0  
+          relative w-full aspect-square
+          rounded-3xl overflow-hidden z-0 shrink-0
         `}
       >
         <Image
@@ -64,9 +64,9 @@ export function ProxyCard({ proxy }: ProxyCardProps) {
       {/* Gradient/black overlay with blur for text content, visible on hover */}
       <div
         className={`
-          absolute inset-x-0 bottom-0 h-[190px]
+          absolute inset-x-0 bottom-0 h-[38%]
           pointer-events-none z-20
-          opacity-0 group-hover:opacity-100
+          opacity-40 group-hover:opacity-75
           transition-all duration-300
           rounded-b-3xl
           bg-linear-to-t from-black/70 to-transparent
@@ -77,9 +77,9 @@ export function ProxyCard({ proxy }: ProxyCardProps) {
       {/* Content stack */}
       <div
         className={`
-          relative z-30 flex flex-col w-full px-5 pb-3 pt-[292px] text-left
+          relative z-30 flex flex-col w-full px-5 pt-4 pb-4 text-left
           transition-transform duration-300
-          min-h-[185px]
+          min-h-[168px]
         `}
       >
         {/* Name, badge, rating */}
@@ -129,16 +129,16 @@ export function ProxyCard({ proxy }: ProxyCardProps) {
       {/* Hover: View Profile button */}
       <div
         className={`
-          absolute left-0 bottom-0 w-full px-2 pb-3 flex justify-center z-40
+          px-3 pb-3 flex justify-center z-40
           
         `}
       >
         <button
           className={`
-            w-full py-3 bg-lime text-black text-[18px] font-bold
+            w-full py-3 bg-lime text-black text-[16px] font-bold
             shadow-lg font-sans text-center border-none
             opacity-0 group-hover:opacity-100
-            transition-all duration-300 pointer-events-auto rounded-b-2xl rounded-t-lg
+            transition-all duration-300 pointer-events-auto rounded-2xl
           `}
           style={{
             letterSpacing: '0.01em'
@@ -155,8 +155,8 @@ export function ProxyCard({ proxy }: ProxyCardProps) {
 
 export function ProxyCardSkeleton() {
   return (
-    <div className="shrink-0 w-[280px] min-h-[460px] flex flex-col justify-end">
-      <div className="w-full aspect-square rounded-2xl bg-dark2 animate-pulse mb-2.5" />
+    <div className="shrink-0 w-[280px] flex flex-col">
+      <div className="w-full aspect-square rounded-2xl bg-dark2 animate-pulse mb-4" />
       <div className="h-4 w-1/2 bg-dark2 rounded animate-pulse mb-1" />
       <div className="h-3 w-full bg-dark2 rounded animate-pulse mb-1" />
       <div className="h-3 w-4/5 bg-dark2 rounded animate-pulse" />

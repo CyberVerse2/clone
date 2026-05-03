@@ -20,7 +20,6 @@ interface ProxyData {
   avatarUrl: string | null;
   bio: string | null;
   ensName: string | null;
-  ensRegistrationStatus: string | null;
   ensResolvedAddress: string | null;
   ticker: string | null;
   status: string;

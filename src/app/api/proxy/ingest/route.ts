@@ -6,6 +6,7 @@ import {
   getProxyByHandle,
   createProxy,
   updateProxy,
+  updateUser,
 } from "@/lib/db/queries";
 import { getUserByUsername } from "@/lib/x/client";
 
@@ -16,36 +17,78 @@ import { getUserByUsername } from "@/lib/x/client";
  */
 export async function POST(request: Request) {
   const { privyId, xHandle } = await request.json();
-  if (!privyId || !xHandle) {
+  const cleanHandle = typeof xHandle === "string" ? xHandle.trim().replace(/^@/, "") : "";
+
+  if (!privyId || !cleanHandle) {
     return NextResponse.json({ error: "Missing privyId or xHandle" }, { status: 400 });
   }
 
   const user = await getUserByPrivyId(privyId);
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  // Check for existing proxy
-  let proxy = await getProxyByCreatorId(user.id);
-  if (!proxy) {
-    proxy = await getProxyByHandle(xHandle);
+  let displayName = cleanHandle;
+  let avatarUrl: string | undefined;
+  let bio: string | undefined;
+  try {
+    const xUser = await getUserByUsername(cleanHandle);
+    if (xUser) {
+      displayName = xUser.name ?? cleanHandle;
+      avatarUrl = xUser.profile_image_url?.replace("_normal", "_400x400");
+      bio = xUser.description;
+
+      await updateUser(user.id, {
+        xHandle: cleanHandle,
+        displayName,
+        xProfileImageUrl: avatarUrl,
+        bio,
+      }).catch(() => {});
+    }
+  } catch {
+    // Fall back to the submitted handle. X lookup failures should not detach
+    // setup from the authenticated app user.
   }
 
-  // Create new proxy if needed
-  if (!proxy) {
-    // Fetch X profile for display name and avatar
-    let displayName = xHandle;
-    let avatarUrl: string | undefined;
-    let bio: string | undefined;
-    try {
-      const xUser = await getUserByUsername(xHandle);
-      if (xUser) {
-        displayName = xUser.name ?? xHandle;
-        avatarUrl = xUser.profile_image_url?.replace("_normal", "_400x400");
-        bio = xUser.description;
-      }
-    } catch { /* fall back to handle */ }
+  let proxy = await getProxyByCreatorId(user.id);
+  const handleProxy = await getProxyByHandle(cleanHandle);
 
+  if (proxy && proxy.xHandle.toLowerCase() !== cleanHandle.toLowerCase()) {
+    return NextResponse.json(
+      { error: `Your account already owns @${proxy.xHandle}.` },
+      { status: 409 }
+    );
+  }
+
+  if (handleProxy && handleProxy.creatorId && handleProxy.creatorId !== user.id) {
+    return NextResponse.json(
+      { error: `@${cleanHandle} already has a claimed proxy.` },
+      { status: 409 }
+    );
+  }
+
+  if (!proxy && handleProxy) {
+    proxy = await updateProxy(handleProxy.id, {
+      creatorId: user.id,
+      xHandle: cleanHandle,
+      displayName,
+      avatarUrl,
+      bio,
+      status: handleProxy.status === "live" ? "live" : "building",
+    });
+  }
+
+  if (!proxy) {
     proxy = await createProxy({
-      xHandle,
+      creatorId: user.id,
+      xHandle: cleanHandle,
+      displayName,
+      avatarUrl,
+      bio,
+      status: "building",
+    });
+  } else if (proxy.status !== "live") {
+    proxy = await updateProxy(proxy.id, {
+      creatorId: user.id,
+      xHandle: cleanHandle,
       displayName,
       avatarUrl,
       bio,
@@ -67,7 +110,7 @@ export async function POST(request: Request) {
       name: "proxy/ingest.requested",
       data: {
         proxyId: proxy.id,
-        xHandle,
+        xHandle: cleanHandle,
         maxTweets: 500,
         walletAddress: user.walletAddress,
       },

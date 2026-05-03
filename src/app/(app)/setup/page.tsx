@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DEFAULT_AVATAR } from "@/lib/config/constants";
 import { ArrowRight, ArrowLeft, Check, Mic, Brain, Lock, Cog, MessageSquare, Loader2, Upload, Sparkles, ArrowUp, Square, Zap, Globe2, ShieldCheck, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,14 @@ const STEPS = [
   { id: 3, label: "Private Data", icon: Lock, description: "Optionally add private notes, FAQs, or context only you would know." },
   { id: 4, label: "Config", icon: Cog, description: "Set your proxy's pricing, visibility, and behavior preferences." },
   { id: 5, label: "Claim ENS", icon: Globe2, description: "Claim your free proxiagent.eth subname, then test and launch your clone." },
+];
+
+const DEMO_VOICE_STEPS = [
+  "Connecting to X profile",
+  "Fetching recent posts",
+  "Extracting voice and writing style",
+  "Building clone memory",
+  "Preparing token and ENS identity",
 ];
 
 function usernameToEnsLabel(username: string) {
@@ -37,9 +46,11 @@ function cloneEnsName(username: string) {
 
 export default function SetupPage() {
   const { user, xHandle, ready, authenticated } = useAuth();
+  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
   const [proxy, setProxy] = useState<Proxy | null>(null);
   const [loading, setLoading] = useState(true);
+  const demoMode = searchParams.get("demo") === "1";
 
   // Load existing proxy data
   useEffect(() => {
@@ -114,9 +125,10 @@ export default function SetupPage() {
 
         {currentStep === 1 && (
           <VoiceStep
-            xHandle={xHandle}
+            xHandle={proxy?.xHandle ?? xHandle}
             privyId={user?.id ?? null}
             proxy={proxy}
+            demoMode={demoMode}
             onComplete={async () => { await refreshProxy(); setCurrentStep(2); }}
           />
         )}
@@ -130,7 +142,7 @@ export default function SetupPage() {
           <ConfigStep proxy={proxy} privyId={user?.id ?? null} onRefresh={refreshProxy} />
         )}
         {currentStep === 5 && (
-          <ClaimEnsStep proxy={proxy} privyId={user?.id ?? null} onRefresh={refreshProxy} />
+          <ClaimEnsStep proxy={proxy} privyId={user?.id ?? null} onRefresh={refreshProxy} demoMode={demoMode} />
         )}
       </Card>
 
@@ -159,22 +171,37 @@ function VoiceStep({
   xHandle,
   privyId,
   proxy,
+  demoMode,
   onComplete,
 }: {
   xHandle: string | null;
   privyId: string | null;
   proxy: Proxy | null;
+  demoMode: boolean;
   onComplete: () => void;
 }) {
   const [status, setStatus] = useState<"idle" | "analyzing" | "done" | "error">(
-    proxy?.voiceProfile ? "done" : "idle"
+    demoMode ? "idle" : proxy?.voiceProfile ? "done" : "idle"
   );
   const [error, setError] = useState("");
+  const [demoStep, setDemoStep] = useState(0);
 
   const startAnalysis = async () => {
     if (!privyId || !xHandle) return;
     setStatus("analyzing");
     setError("");
+    setDemoStep(0);
+
+    if (demoMode) {
+      DEMO_VOICE_STEPS.forEach((_, index) => {
+        window.setTimeout(() => setDemoStep(index), index * 850);
+      });
+      window.setTimeout(() => {
+        setStatus("done");
+        setDemoStep(DEMO_VOICE_STEPS.length - 1);
+      }, DEMO_VOICE_STEPS.length * 850);
+      return;
+    }
 
     try {
       const res = await fetch("/api/proxy/ingest", {
@@ -245,11 +272,29 @@ function VoiceStep({
       {status === "analyzing" && (
         <div className="text-center py-6 space-y-3">
           <Loader2 size={32} className="text-lime animate-spin mx-auto" />
-          <p className="text-white text-sm font-medium">Analyzing your voice...</p>
-          <p className="text-gray text-xs">
-            Fetching your tweets, building voice profile, and creating embeddings.
-            This takes 2-5 minutes.
+          <p className="text-white text-sm font-medium">
+            {demoMode ? DEMO_VOICE_STEPS[demoStep] : "Analyzing your voice..."}
           </p>
+          <p className="text-gray text-xs">
+            {demoMode
+              ? "Fetching your posts, building your voice profile, and preparing your clone."
+              : "Fetching your tweets, building voice profile, and creating embeddings. This takes 2-5 minutes."}
+          </p>
+          {demoMode && (
+            <div className="mx-auto max-w-sm space-y-2 pt-2 text-left">
+              {DEMO_VOICE_STEPS.map((label, index) => (
+                <div key={label} className="flex items-center gap-2 text-xs">
+                  <span className={cn(
+                    "flex h-5 w-5 items-center justify-center rounded-full border",
+                    index <= demoStep ? "border-lime/30 bg-lime/10 text-lime" : "border-white/10 text-gray"
+                  )}>
+                    {index < demoStep ? <Check size={11} /> : index + 1}
+                  </span>
+                  <span className={index <= demoStep ? "text-white" : "text-gray"}>{label}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -537,16 +582,21 @@ function ClaimEnsStep({
   proxy,
   privyId,
   onRefresh,
+  demoMode,
 }: {
   proxy: Proxy | null;
   privyId: string | null;
   onRefresh: () => Promise<Proxy | null>;
+  demoMode: boolean;
 }) {
+  const router = useRouter();
   const handle = proxy?.xHandle ?? "";
   const { messages, isLoading, sendMessage, stop } = useChat({ proxyHandle: handle });
   const [input, setInput] = useState("");
   const [launching, setLaunching] = useState(false);
   const [claimingEns, setClaimingEns] = useState(false);
+  const [demoEnsClaimed, setDemoEnsClaimed] = useState(false);
+  const [demoLive, setDemoLive] = useState(false);
   const [ensError, setEnsError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -565,6 +615,16 @@ function ClaimEnsStep({
   const handleLaunch = async () => {
     if (!privyId || !proxy?.ensName) return;
     setLaunching(true);
+
+    if (demoMode) {
+      window.setTimeout(() => {
+        setDemoLive(true);
+        setLaunching(false);
+        router.push(`/${proxy.xHandle}`);
+      }, 900);
+      return;
+    }
+
     try {
       await fetch("/api/proxy", {
         method: "PATCH",
@@ -572,6 +632,7 @@ function ClaimEnsStep({
         body: JSON.stringify({ privyId, status: "live" }),
       });
       await onRefresh();
+      router.push(`/${proxy.xHandle}`);
     } catch { /* ignore */ }
     setLaunching(false);
   };
@@ -580,6 +641,15 @@ function ClaimEnsStep({
     if (!privyId || !proxy?.xHandle) return;
     setClaimingEns(true);
     setEnsError(null);
+
+    if (demoMode) {
+      window.setTimeout(() => {
+        setDemoEnsClaimed(true);
+        setClaimingEns(false);
+      }, 1100);
+      return;
+    }
+
     try {
       const res = await fetch("/api/proxy/ens", {
         method: "POST",
@@ -607,12 +677,13 @@ function ClaimEnsStep({
     );
   }
 
-  const isLive = proxy.status === "live";
+  const isLive = demoMode ? demoLive : proxy.status === "live";
   const generatedEnsName = cloneEnsName(proxy.xHandle);
   const displayEnsName = proxy.ensName ?? generatedEnsName;
-  const hasClaimedEns =
+  const realHasClaimedEns =
     (proxy.ensRegistrationStatus === "claimed" || proxy.ensRegistrationStatus === "published") &&
     !!proxy.ensName;
+  const hasClaimedEns = demoMode ? demoEnsClaimed : realHasClaimedEns;
   const ensRecords = proxy.ensTextRecords && typeof proxy.ensTextRecords === "object"
     ? proxy.ensTextRecords as Record<string, unknown>
     : {};
@@ -644,7 +715,7 @@ function ClaimEnsStep({
             </div>
             {hasClaimedEns ? (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-lime/20 bg-lime/10 px-3 py-1 text-xs font-semibold text-lime">
-                <ShieldCheck size={13} /> {proxy.ensRegistrationStatus === "published" ? "Published" : "Claimed"}
+                <ShieldCheck size={13} /> Claimed
               </span>
             ) : (
               <Button onClick={handleClaimEns} disabled={claimingEns || !privyId} size="sm">

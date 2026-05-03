@@ -14,6 +14,7 @@ Creators can turn their public writing and connected knowledge into an AI clone 
 - X/Twitter ingestion
 - Vercel AI SDK
 - Base + Clanker token deployment
+- Uniswap Trading API swaps
 
 ## Hackathon Note
 
@@ -26,3 +27,5 @@ npm run dev
 npm run build
 npm run lint
 ```
+
+Set `UNISWAP_API_KEY` for live clone-token buys and sells.

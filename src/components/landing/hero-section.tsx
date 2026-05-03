@@ -1,10 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ProxyCard } from '@/components/proxy/proxy-card';
 import type { Proxy } from '@/lib/db/schema';
 import { CREATOR_FEE_PERCENT } from '@/lib/config/constants';
+import { CloneMeButton } from '@/components/auth/clone-me-button';
 
 /* ─── Main Hero ─── */
 interface HeroSectionProps {
@@ -61,12 +61,10 @@ export function HeroSection({ proxies = [] }: HeroSectionProps) {
         className="flex items-center gap-4 flex-wrap justify-center animate-fade-up"
         style={{ animationDelay: '0.3s' }}
       >
-        <Link
-          href="/proxy"
+        <CloneMeButton
+          redirectTo="/setup?demo=1"
           className="bg-linear-to-r from-lime to-coral text-dark border-none px-7 py-3 rounded-full font-bold text-[0.95rem] cursor-pointer transition-all duration-300 hover:scale-105 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgba(55,242,255,0.28)] no-underline inline-block"
-        >
-          Create My Clone
-        </Link>
+        />
         <Button
           variant="outline"
           size="lg"

@@ -1,34 +1,23 @@
 import { NextResponse } from "next/server";
 import {
-  BASE_CHAIN_ID,
-  USDC_ADDRESS,
-  SWAP_FEE_BPS,
-  SLIPPAGE_BPS,
-  ZX_API_BASE,
-} from "@/lib/config/constants";
-
-const ZX_API_KEY = process.env["ZEROX_API_KEY"] ?? "";
-
-// Affiliate fee config — 1% fee sent to the platform wallet in the sell token
-const SWAP_FEE_RECIPIENT = process.env.PLATFORM_WALLET_ADDRESS;
-if (!SWAP_FEE_RECIPIENT) {
-  console.warn("[swap] PLATFORM_WALLET_ADDRESS not set — swap fees will not be collected");
-}
+  fetchUniswapExecutableQuote,
+  fetchUniswapPrice,
+  hasUniswapApiKey,
+  type UniswapSwapMode
+} from "@/lib/chain/uniswap";
 
 /**
  * GET /api/swap?type=price|quote&mode=buy|sell&tokenAddress=0x...&sellAmount=123&taker=0x...
  *
- * Proxies to 0x Swap API v2 (Allowance Holder) keeping the API key server-side.
+ * Proxies to the Uniswap Trading API, keeping the API key server-side.
  *
  * Buy mode:  sell USDC → buy proxy token
  * Sell mode: sell proxy token → buy USDC
- *
- * Affiliate fee: 1% of the sell token is collected and sent to the platform wallet.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type") ?? "price"; // "price" or "quote"
-  const mode = searchParams.get("mode") ?? "buy"; // "buy" or "sell"
+  const mode = (searchParams.get("mode") ?? "buy") as UniswapSwapMode;
   const tokenAddress = searchParams.get("tokenAddress");
   const sellAmount = searchParams.get("sellAmount");
   const taker = searchParams.get("taker");
@@ -40,66 +29,68 @@ export async function GET(request: Request) {
     );
   }
 
-  if (!ZX_API_KEY) {
+  if (mode !== "buy" && mode !== "sell") {
     return NextResponse.json(
-      { error: "0x API key not configured" },
+      { error: "Invalid swap mode" },
+      { status: 400 },
+    );
+  }
+
+  if (!hasUniswapApiKey()) {
+    return NextResponse.json(
+      { error: "Uniswap API key not configured" },
       { status: 500 },
     );
   }
 
-  // Build 0x request
-  const isBuy = mode === "buy";
-  const sellToken = isBuy ? USDC_ADDRESS : tokenAddress;
-  const buyToken = isBuy ? tokenAddress : USDC_ADDRESS;
-
-  const params = new URLSearchParams({
-    chainId: String(BASE_CHAIN_ID),
-    sellToken,
-    buyToken,
-    sellAmount,
-    slippageBps: SLIPPAGE_BPS,
-    ...(SWAP_FEE_RECIPIENT
-      ? {
-          swapFeeRecipient: SWAP_FEE_RECIPIENT,
-          swapFeeBps: SWAP_FEE_BPS,
-          swapFeeToken: sellToken,
-        }
-      : {}),
-  });
-
-  // For quote, taker is required
-  if (type === "quote" && taker) {
-    params.set("taker", taker);
-  }
-
-  const endpoint =
-    type === "quote"
-      ? `${ZX_API_BASE}/quote`
-      : `${ZX_API_BASE}/price`;
-
   try {
-    const res = await fetch(`${endpoint}?${params.toString()}`, {
-      headers: {
-        "0x-api-key": ZX_API_KEY,
-        "0x-version": "v2",
-      },
-    });
+    if (type === "quote") {
+      if (!taker) {
+        return NextResponse.json(
+          { error: "Missing taker for executable quote" },
+          { status: 400 },
+        );
+      }
+      const quote = await fetchUniswapExecutableQuote({
+        tokenAddress,
+        sellAmount,
+        mode,
+        swapper: taker
+      });
+      return NextResponse.json(quote);
+    }
 
-    const data = await res.json();
-
-    if (!res.ok) {
+    const swapper = taker ?? process.env.PLATFORM_WALLET_ADDRESS;
+    if (!swapper) {
       return NextResponse.json(
-        { error: data.reason ?? "0x API error", details: data },
-        { status: res.status },
+        { error: "Missing taker or PLATFORM_WALLET_ADDRESS for price quote" },
+        { status: 400 },
       );
     }
 
-    return NextResponse.json(data);
+    const price = await fetchUniswapPrice({
+      tokenAddress,
+      sellAmount,
+      mode,
+      swapper
+    });
+    return NextResponse.json(price);
   } catch (error) {
-    console.error("[swap] 0x API error:", error);
+    const status =
+      typeof error === "object" && error && "status" in error
+        ? Number((error as { status: unknown }).status)
+        : 500;
+    const details =
+      typeof error === "object" && error && "details" in error
+        ? (error as { details: unknown }).details
+        : undefined;
+    console.error("[swap] Uniswap API error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch swap quote" },
-      { status: 500 },
+      {
+        error: error instanceof Error ? error.message : "Failed to fetch swap quote",
+        details
+      },
+      { status: Number.isFinite(status) ? status : 500 },
     );
   }
 }

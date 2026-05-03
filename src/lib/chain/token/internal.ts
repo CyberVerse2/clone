@@ -8,7 +8,7 @@ export const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY as `0x${str
 export const PLATFORM_WALLET = process.env.PLATFORM_WALLET_ADDRESS as `0x${string}`;
 export const RPC_URL = process.env.NEXT_PUBLIC_BASE_RPC_URL ?? 'https://mainnet.base.org';
 export const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY ?? '';
-export const ZX_API_KEY = process.env['0X_API_KEY'] ?? '';
+export const UNISWAP_API_KEY = process.env.UNISWAP_API_KEY ?? '';
 
 /** ClankerFeeLocker on Base mainnet (v4) */
 export const FEE_LOCKER_ADDRESS = '0xF3622742b1E446D92e45E22923Ef11C2fcD55D68' as const;

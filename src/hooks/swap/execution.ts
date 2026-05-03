@@ -1,6 +1,3 @@
-import { encodeFunctionData, parseUnits } from 'viem';
-import { USDC_ADDRESS, USDC_DECIMALS } from '@/lib/config/constants';
-import { ERC20_ABI, TOKEN_DECIMALS } from './constants';
 import type { SwapMode, SwapQuote } from './types';
 import type { SwapWallet } from './wallet';
 
@@ -21,8 +18,7 @@ export function createExecuteSwap(
   setError: (value: string | null) => void,
   getWallet: () => SwapWallet | null,
   getQuote: (tokenAddress: string, amount: string, mode: SwapMode) => Promise<SwapQuote | null>,
-  sendTransaction: SendTransaction,
-  messagePriceUsd: number
+  sendTransaction: SendTransaction
 ) {
   return async (tokenAddress: string, amount: string, mode: SwapMode): Promise<string | null> => {
     setLoading(true);
@@ -36,7 +32,6 @@ export function createExecuteSwap(
     }
 
     try {
-      const provider = await wallet.getEthereumProvider();
       const quote = await getQuote(tokenAddress, amount, mode);
       if (!quote) {
         throw new Error('Failed to get swap quote');
@@ -46,45 +41,18 @@ export function createExecuteSwap(
         throw new Error('Swap quote has no transaction — the amount may be too small or the token has no liquidity');
       }
 
-      const sellTokenAddress = mode === 'buy' ? USDC_ADDRESS : tokenAddress;
-      const sellAmountWei =
-        mode === 'buy'
-          ? parseUnits((parseFloat(amount) * messagePriceUsd).toFixed(USDC_DECIMALS), USDC_DECIMALS)
-          : parseUnits(amount, TOKEN_DECIMALS);
+      if (quote.cancel) {
+        await sendTransaction(toSendTransaction(quote.cancel), { sponsor: true, address: wallet.address });
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
 
-      const allowanceData = encodeFunctionData({
-        abi: ERC20_ABI,
-        functionName: 'allowance',
-        args: [wallet.address as `0x${string}`, quote.allowanceTarget as `0x${string}`]
-      });
-
-      const allowanceResult = await provider.request({
-        method: 'eth_call',
-        params: [{ to: sellTokenAddress, data: allowanceData }, 'latest']
-      });
-
-      const currentAllowance = BigInt(allowanceResult as string);
-      if (currentAllowance < sellAmountWei) {
-        const approveData = encodeFunctionData({
-          abi: ERC20_ABI,
-          functionName: 'approve',
-          args: [quote.allowanceTarget as `0x${string}`, sellAmountWei * 2n]
-        });
-
-        await sendTransaction(
-          { to: sellTokenAddress, data: approveData },
-          { sponsor: true, address: wallet.address }
-        );
+      if (quote.approval) {
+        await sendTransaction(toSendTransaction(quote.approval), { sponsor: true, address: wallet.address });
         await new Promise((resolve) => setTimeout(resolve, 3000));
       }
 
       const { hash } = await sendTransaction(
-        {
-          to: quote.transaction.to,
-          data: quote.transaction.data,
-          gasLimit: Number.parseInt(quote.transaction.gas, 10),
-          value: quote.transaction.value ? BigInt(quote.transaction.value) : 0n
-        },
+        toSendTransaction(quote.transaction),
         { sponsor: true, address: wallet.address }
       );
 
@@ -96,4 +64,24 @@ export function createExecuteSwap(
       setLoading(false);
     }
   };
+}
+
+function toSendTransaction(tx: {
+  to: string;
+  data: string;
+  gasLimit?: string;
+  gas?: string;
+  value?: string;
+}): SendTxInput {
+  const gas = tx.gasLimit ?? tx.gas;
+  return {
+    to: tx.to,
+    data: tx.data,
+    gasLimit: gas ? parseQuantity(gas) : undefined,
+    value: tx.value ? BigInt(tx.value) : 0n
+  };
+}
+
+function parseQuantity(value: string) {
+  return value.startsWith('0x') ? Number.parseInt(value.slice(2), 16) : Number.parseInt(value, 10);
 }

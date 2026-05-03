@@ -27,7 +27,7 @@ No test runner is configured yet.
 - **Database**: PostgreSQL with Drizzle ORM, pgvector for embeddings (1536 dims)
 - **Auth**: Privy (Twitter OAuth + embedded Ethereum wallets)
 - **AI**: Vercel AI SDK with Anthropic (chat) and OpenAI (embeddings, text-embedding-3-small)
-- **Blockchain**: Base chain, Clanker SDK v4 (token deployment), 0x API (swaps), viem/wagmi
+- **Blockchain**: Base chain, Clanker SDK v4 (token deployment), Uniswap Trading API (swaps), viem/wagmi
 - **Background Jobs**: Inngest (cron + event-driven functions via `/api/inngest`)
 - **X/Twitter**: `@xdevplatform/xdk` for API v2
 
@@ -71,7 +71,7 @@ The `contentChunks` table stores vector embeddings (1536 dimensions) for RAG sea
 The ingestion pipeline in `src/lib/x/ingest.ts` runs 11 steps: fetch profile, pull tweets, reconstruct threads, filter, score, embed chunks, voice analysis, example selection, brain building, category classification, and token deployment. Chat context is built via RAG (semantic search + priority scoring) with voice profile and brain data.
 
 ### Token lifecycle
-Tokens deploy via Clanker SDK v4. The deployer wallet signs transactions; the creator wallet receives LP fee rewards. Fee claiming runs hourly as a scheduled Inngest cron function. Swaps use 0x API for USDC-to-token trades.
+Tokens deploy via Clanker SDK v4. The deployer wallet signs transactions; the creator wallet receives LP fee rewards. Fee claiming runs hourly as a scheduled Inngest cron function. Swaps use the Uniswap Trading API for USDC-to-token trades.
 
 ## Inngest Rules
 
